@@ -64,6 +64,10 @@ exit /b 0
 :LOAD_CONFIG
 call "%SRVX_ROOT%\shared\load_config.bat"
 if errorlevel 1 goto ERROR_END
+if not defined USER (
+    echo [ОШИБКА] Для VS Code Remote-SSH укажите USER в config.bat и включите OpenSSH Server.
+    exit /b 1
+)
 
 REM Host всегда из абсолютного пути проекта, не из config.bat
 call "%SRVX_ROOT%\shared\resolve_ssh_alias.bat"
@@ -185,6 +189,8 @@ echo ==========================================
 echo Сервер: %SERVER%:%PORT%
 echo.
 
+if /i "%SERVER_OS%"=="windows" goto WINDOWS_FOLDER
+
 echo Поиск доступных профилей на сервере...
 
 set "TEMP_USERS=%TEMP%\srvx_users_%RANDOM%.tmp"
@@ -231,7 +237,8 @@ for /l %%I in (1,1,!USER_COUNT!) do (
 echo.
 
 set "USER_CHOICE="
-set /p "USER_CHOICE=Выберите профиль [1-!USER_COUNT!] (по умолчанию: !DEFAULT_USER_IDX!): "
+echo Номер профиля [Enter = !DEFAULT_USER_IDX!]:
+set /p "USER_CHOICE=> "
 if not defined USER_CHOICE set "USER_CHOICE=!DEFAULT_USER_IDX!"
 set "USER_CHOICE=!USER_CHOICE: =!"
 if not defined USER_CHOICE set "USER_CHOICE=!DEFAULT_USER_IDX!"
@@ -273,7 +280,8 @@ echo   [3] Ввести свой путь вручную...
 echo.
 
 set "DIR_CHOICE="
-set /p "DIR_CHOICE=Выберите папку [1-3] (по умолчанию: 1): "
+echo Номер папки [Enter = 1]:
+set /p "DIR_CHOICE=> "
 if not defined DIR_CHOICE set "DIR_CHOICE=1"
 set "DIR_CHOICE=!DIR_CHOICE: =!"
 if not defined DIR_CHOICE set "DIR_CHOICE=1"
@@ -288,7 +296,8 @@ goto FOLDER_DONE
 
 :DIR_CUSTOM
 set "CUSTOM_PATH="
-set /p "CUSTOM_PATH=Введите путь на сервере (например, /var/www): "
+echo Путь на сервере, например /var/www:
+set /p "CUSTOM_PATH=> "
 if not defined CUSTOM_PATH goto DIR_DEFAULT
 set "CUSTOM_PATH=!CUSTOM_PATH: =!"
 if not defined CUSTOM_PATH goto DIR_DEFAULT
@@ -301,7 +310,7 @@ goto FOLDER_DONE
 
 :FOLDER_DONE
 
-if "!TARGET_USER!"=="root" if "!SRVX_SSH_USE_KEY!"=="1" (
+if /i not "%SERVER_OS%"=="windows" if "!TARGET_USER!"=="root" if "!SRVX_SSH_USE_KEY!"=="1" (
     ssh -n -p %PORT% -i "%SSH_KEY%" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new root@%SERVER% "exit" >nul 2>&1
     if errorlevel 1 (
         echo.
@@ -311,6 +320,20 @@ if "!TARGET_USER!"=="root" if "!SRVX_SSH_USE_KEY!"=="1" (
         )
     )
 )
+
+goto OPEN_REMOTE
+
+:WINDOWS_FOLDER
+set "TARGET_USER=%USER%"
+set "TARGET_PATH=%~1"
+if not defined TARGET_PATH (
+    echo Папка на Windows-сервере [C:/Users/%USER%]:
+    set /p "TARGET_PATH=> "
+)
+if not defined TARGET_PATH set "TARGET_PATH=C:/Users/%USER%"
+set "TARGET_PATH=!TARGET_PATH:\=/!"
+
+:OPEN_REMOTE
 
 call "%SRVX_ROOT%\shared\sync_ssh_config.bat"
 if errorlevel 1 (

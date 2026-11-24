@@ -14,6 +14,10 @@ call "%~dp0..\shared\resolve_root.bat"
 
 call "%SRVX_ROOT%\shared\load_config.bat"
 if errorlevel 1 goto END
+if not defined USER (
+    echo [ОШИБКА] Для WinSCP укажите USER в config.bat и включите OpenSSH Server/SFTP.
+    exit /b 1
+)
 
 set "WINSCP_KEY=%PROJECT_DIR%\my_key.ppk"
 

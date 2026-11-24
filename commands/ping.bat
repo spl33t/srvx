@@ -18,8 +18,19 @@ echo ==========================================
 echo  srvx ping
 echo ==========================================
 echo.
-echo Цель: %USER%@%SERVER%:%PORT%
+if /i "%SERVER_OS%"=="windows" (echo Цель: RDP %SERVER%:3389) else (echo Цель: %USER%@%SERVER%:%PORT%)
+if /i "%TAILSCALE%"=="1" (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%SRVX_ROOT%\shared\tailscale.ps1" -Action show
+    if errorlevel 1 exit /b 1
+)
 echo.
+
+if /i "%SERVER_OS%"=="windows" (
+    echo Проверка TCP-порта RDP...
+    powershell.exe -NoProfile -Command ^
+      "try { $c = New-Object Net.Sockets.TcpClient; $iar=$c.BeginConnect('%SERVER%',3389,$null,$null); if(-not $iar.AsyncWaitHandle.WaitOne(3000,$false)){ throw 'timeout' }; $c.EndConnect($iar); $c.Close(); Write-Host '[OK] TCP 3389 открыт на %SERVER%' } catch { Write-Host '[ОШИБКА]' $_.Exception.Message; exit 1 }"
+    goto PING_RESULT
+)
 
 where ssh.exe >nul 2>&1
 if errorlevel 1 (
@@ -30,7 +41,11 @@ if errorlevel 1 (
 if exist "%SSH_KEY%" (
     call "%SRVX_ROOT%\shared\fix_key.bat" "%SSH_KEY%"
     echo Проверка по SSH-ключу...
-    ssh -n -p %PORT% -i "%SSH_KEY%" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new %USER%@%SERVER% "echo OK; hostname; uptime" <nul
+    if /i "%SERVER_OS%"=="windows" (
+        ssh -n -p %PORT% -i "%SSH_KEY%" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new %USER%@%SERVER% "hostname" <nul
+    ) else (
+        ssh -n -p %PORT% -i "%SSH_KEY%" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new %USER%@%SERVER% "echo OK; hostname; uptime" <nul
+    )
 ) else (
     echo [!] Ключ не найден: %SSH_KEY%
     echo Пробуем TCP-порт через PowerShell...
@@ -38,6 +53,7 @@ if exist "%SSH_KEY%" (
       "try { $c = New-Object Net.Sockets.TcpClient; $c.ReceiveTimeout=3000; $c.SendTimeout=3000; $iar=$c.BeginConnect('%SERVER%',%PORT%,$null,$null); if(-not $iar.AsyncWaitHandle.WaitOne(3000,$false)){ throw 'timeout' }; $c.EndConnect($iar); $c.Close(); Write-Host '[OK] TCP %PORT% открыт на %SERVER%' } catch { Write-Host '[ОШИБКА]' $_.Exception.Message; exit 1 }"
 )
 
+:PING_RESULT
 set "EC=%ERRORLEVEL%"
 echo.
 if "%EC%"=="0" (

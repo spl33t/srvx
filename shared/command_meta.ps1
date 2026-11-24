@@ -236,7 +236,8 @@ switch ($Action) {
         Write-Output '  srvx                 команда с default=1'
         foreach ($c in $valid) {
             $names = @($c.id) + @($c.aliases)
-            $left = ('  srvx ' + ($names -join ' | ')).PadRight(42)
+            $left = '  srvx ' + ($names -join ' | ')
+            if ($left.Length -ge 42) { $left += '  ' } else { $left = $left.PadRight(42) }
             Write-Output ($left + $c.desc)
         }
         Write-Output '  srvx help                 эта справка'
@@ -255,7 +256,26 @@ switch ($Action) {
     }
 
     'menu' {
-        $items = @($valid | Where-Object { $_.menu })
+        $hasConfig = $false
+        $serverOs = 'linux'
+        $hasSshUser = $false
+        $projectDir = [string]$env:PROJECT_DIR
+        if (-not [string]::IsNullOrWhiteSpace($projectDir)) {
+            $cfg = Join-Path $projectDir.Trim().TrimEnd('\') 'config.bat'
+            $hasConfig = Test-Path -LiteralPath $cfg
+            if ($hasConfig) {
+                $configLines = @(Get-Content -LiteralPath $cfg)
+                if ($configLines | Where-Object { $_ -match '^\s*set\s+"?SERVER_OS=windows"?\s*$' }) { $serverOs = 'windows' }
+                if ($configLines | Where-Object { $_ -match '^\s*set\s+"?USER=([^"\r\n]+)"?\s*$' }) { $hasSshUser = $true }
+            }
+        }
+        $items = @($valid | Where-Object {
+            $_.menu -and ($hasConfig -or -not $_.needs_config) -and
+            (($serverOs -eq 'windows' -and
+              ($_.id -in @('rdp', 'ping', 'init', 'install-openssh') -or
+               ($hasSshUser -and $_.id -in @('ssh', 'vscode', 'winscp')))) -or
+             ($serverOs -ne 'windows' -and $_.id -notin @('rdp', 'install-openssh')))
+        })
         $i = 0
         foreach ($c in $items) {
             $i++

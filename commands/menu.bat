@@ -17,6 +17,10 @@ echo  srvx — меню действий
 echo ==========================================
 echo.
 echo Проект: %PROJECT_DIR%
+if not exist "%PROJECT_DIR%\config.bat" (
+    echo.
+    echo [!] Нет config.bat — команды подключения скрыты.
+)
 echo.
 
 set "IDX=0"
@@ -35,7 +39,8 @@ echo   [0] Выход
 echo.
 
 set "CHOICE="
-set /p "CHOICE=Выберите действие: "
+echo Выберите действие:
+set /p "CHOICE=> "
 if not defined CHOICE goto END
 if "%CHOICE%"=="0" goto END
 

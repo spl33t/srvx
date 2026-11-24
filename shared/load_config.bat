@@ -24,10 +24,9 @@ if not defined SERVER (
     exit /b 1
 )
 
-if not defined USER (
-    echo [ОШИБКА] USER не указан в config.bat
-    echo.
-    exit /b 1
+if /i "%SERVER_OS%"=="windows" if not defined USER if /i "%TAILSCALE%"=="1" (
+    for /f "usebackq delims=" %%A in (`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0import_openssh_user.ps1" -ProjectDir "%PROJECT_DIR%" -Server "%SERVER%"`) do set "USER=%%A"
+    if defined USER echo [OK] USER автоматически получен через Taildrop.
 )
 
 if not defined PORT set "PORT=22"
@@ -36,6 +35,21 @@ if not defined PASSWORD_FILE set "PASSWORD_FILE=%PROJECT_DIR%\password.txt"
 if not defined SERVER_ALIVE_INTERVAL set "SERVER_ALIVE_INTERVAL=15"
 if not defined SERVER_ALIVE_COUNT_MAX set "SERVER_ALIVE_COUNT_MAX=20"
 if not defined AUTO_SUDO set "AUTO_SUDO=1"
+if not defined TAILSCALE set "TAILSCALE=0"
+if not defined SERVER_OS set "SERVER_OS=linux"
+if /i not "%SERVER_OS%"=="linux" if /i not "%SERVER_OS%"=="windows" (
+    echo [ОШИБКА] SERVER_OS должен быть linux или windows.
+    exit /b 1
+)
+if /i "%SERVER_OS%"=="linux" if not defined USER (
+    echo [ОШИБКА] USER не указан в config.bat
+    exit /b 1
+)
+
+if /i "%TAILSCALE%"=="1" (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tailscale.ps1" -Action check
+    if errorlevel 1 exit /b 1
+)
 
 REM Не берём alias из config.bat — всегда путь проекта
 set "SSH_HOST_ALIAS="

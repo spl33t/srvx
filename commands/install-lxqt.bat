@@ -16,6 +16,10 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+if /i "%SERVER_OS%"=="windows" (
+  echo [ОШИБКА] Установка LXQt поддерживается только на Linux-сервере.
+  exit /b 1
+)
 if not exist "%SRVX_ROOT%\commands\ssh.bat" (
   echo [ERROR] srvx ssh.bat not found.
   pause

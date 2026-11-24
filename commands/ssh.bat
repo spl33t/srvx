@@ -26,6 +26,10 @@ REM ==========================================
 
 call "%SRVX_ROOT%\shared\load_config.bat"
 if errorlevel 1 exit /b 1
+if not defined USER (
+    echo [ОШИБКА] Для SSH укажите USER в config.bat и включите OpenSSH Server на Windows-сервере.
+    exit /b 1
+)
 
 REM ==========================================
 REM ЗАГРУЗКА ПАРОЛЕЙ
@@ -40,6 +44,12 @@ REM ==========================================
 set "REMOTE_CMD="
 set "SSH_TTY_FLAG="
 set "B64_EXEC_CMD="
+
+REM Windows OpenSSH запускает команду через shell, заданный на сервере.
+if /i "%SERVER_OS%"=="windows" (
+    if defined EXEC_CMD set "REMOTE_CMD=%EXEC_CMD%"
+    goto CMD_SETUP_DONE
+)
 
 if defined EXEC_CMD (
     for /f "usebackq delims=" %%A in (`powershell -NoProfile -Command "[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($env:EXEC_CMD))"`) do set "B64_EXEC_CMD=%%A"
@@ -113,7 +123,9 @@ echo User:      %USER%
 if defined EXEC_CMD (
     echo Команда:   "%EXEC_CMD%"
 )
-if "%AUTO_SUDO%"=="1" (
+if /i "%SERVER_OS%"=="windows" (
+    echo Remote OS: Windows
+) else if "%AUTO_SUDO%"=="1" (
     if defined B64_SUDO_PASS (
         echo AutoSudo:  Включено [пароль из password.txt]
     ) else (

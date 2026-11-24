@@ -17,6 +17,10 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+if /i "%SERVER_OS%"=="windows" (
+  echo [ОШИБКА] LXQt/noVNC поддерживается только на Linux-сервере.
+  exit /b 1
+)
 if not defined SERVER (
   echo [ОШИБКА] SERVER не задан в config.bat
   pause
